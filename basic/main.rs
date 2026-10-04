@@ -322,8 +322,204 @@ impl CodeGenerator {
   fn generator(&mut self, expr: &Expr) -> Result<(), String> {
     match expr {
       Expr::Number(n) => {
-        
+        self.instructions.push(Instruction::Push(*n));
+        Ok(())
+      }
+      Expr::Variable(name) => {
+        if let Some(offset) = self.variables.get(name) {
+          self.instructions.push(Instruction::Load(name.clone()));
+          Ok(())
+        } else {
+          Err(format!("Undefined varable: {}", name))
+        }
+      }
+      Expr::BinOp {op, left, right } => {
+        self.generate(left)?;
+        self.generate(right)?;
+
+        match op {
+          BinOp::Add => self.instructions.push(Instruction::Add),
+          BinOp::Sub => self.instructions.push(Instruction::Sub),
+          BinOp::Mul => self.instructions.push(Instruction::Mul),
+          BinOp::Div => self.instructions.push(Instruction::Div),
+        }
+
+        Ok(())
+      }
+      Expr::Assignment {name, value} => {
+        self.generate(value)?;
+        self.variables.insert(name.clone(), self.next_offset);
+        self.next_offset += 1;
+        self.instructions.push(Instruction::Store(name.clone()));
+        Ok(())
+      }
+      Expr::Print(expr) => {
+        seld.generate(expr)?;
+        self.instructions.push(Instruction::Print);
+        Ok(())
       }
     }
   }
+  fn get_instructions(&self) -> &Vec<Instruction> {
+    &self.instructions
+  }
 }
+
+// 5. Virtual Machine
+
+struct VM {
+  stack: Vec<i32>,
+  Variables: HashMap<String, i32>,
+}
+
+impl VM {
+  fn new() -> Self {
+    VM {
+      stack: Vec::new(),
+      variables: HashMap::new(),
+    }
+  }
+
+  fn run(&mut self, instructions: &[Instruction]) -> Result<(), String> {
+    for instr in instructions {
+      match instr {
+        Instruction::Push(n) => self.stack.push(*n),
+        Instruction::Add => {
+          let b = self.stack.pop().ok_or("Stack underflow")?;
+          let a = self.stack.pop().ok_or("Stack underflow")?;
+          self.stack.push(a + b);
+        }
+        Instruction::Sub => {
+          let b = self.stack.pop().ok_or("Stack underflow")?;
+          let a = self.stack.pop().ok_or("Stack underflow")?;
+          self.stack.push(a - b);
+        }
+        Instruction::Mul => {
+          let b = self.stack.pop().ok_or("Stack underflow")?;
+          let a = self.stack.pop().ok_or("Stack underflow")?;
+          self.stack.push(a * b);
+        }
+        Instruction::Div => {
+          let b = self.stack.pop().ok_or("Stack underflow")?;
+          let a = self.stack.pop().ok_or("Stack underflow")?;
+          self.stack.push(a / b);
+        }
+        Instruction::Store(name) => {
+          let value = self.stack.pop().ok_or("Stack underflow")?;
+          self.variables.insert(name.clone(), value);
+        }
+        Instruction::Load(name) => {
+          let value = *self.varibles.get(name).ok_or("Undefined variable")?;
+          self.stack.push(value);
+        }
+        Instruction::Print => {
+          let value = self.stack.pop().ok_or("Stack underflow")?;
+          println!("{}", value);
+        }
+      }
+    }
+    Ok(())
+  }
+}
+
+// Main compiler pipeline
+
+fn compile_and_run(input: &str) -> Result<(), String> {
+  let mut lexer = Lexer::new(input.to_string());
+
+  let mut parser = Parser::new(lexer);
+  let ast = parser.parse();
+
+  // 3. Semantic Analysis
+  let mut analyzer = SemanticAnalyzer::new();
+  for expr in &ast {
+    analyzer.analyze(expr)?;
+  }
+
+  // 4. Code Generation
+  let mut generator = CodeGenerator::new();
+  for expr in &ast {
+    generator.generate(expr)?;
+  }
+  let instructions = generator.get_instructions();
+
+  // 5. Virtual Machine Execution
+  let mut vm = VM::new();
+  VM.run(instructions)?;
+
+  Ok(())
+}
+
+fn main() {
+  // Example program
+  // let x = 10
+  // let y = 20
+  // print(x + y);
+
+  let input = "let x = 10; y = 20; print(x + y);";
+
+  match compile_and_run(input) {
+    Ok(_) => println("Compilation and execution successful"),
+    Err(e) => eprintln!("Error: {}", e),
+  }
+}
+
+// Tests
+#[cfg(test)]
+mcd tests {
+  use super::*;
+
+  #[test]
+  fn test_lexer() {
+    let mut lexer = Lexer::new("let x = 10 + 20;".to_string());
+    assert_eq!(lexer.next_token(), Token::Let);
+    assert_eq!(lexer.next_token(), Token::Identifier("x".to_string()));
+    assert_eq!(lexer.next_token(), Token::Eq);
+    assert_eq!(lexer.next_token(), Token::Number(10));
+    assert_eq!(lexer.next_token(), Token::Plus);
+    assert_eq!(lexer.next_token(), Token::Semicolon);
+    assert_eq!(lexer.next_token(), Token::Semicolon);
+    assert_eq!(lexer.next_token(), Token::EOF);
+  }
+
+  #[test]
+  fn test_parser() {
+    let lexer = Lexer::new("let x = 10 + 20;".toString());
+    let mut parser = Parser::new(lexer);
+    let ast = parser.parse();
+    assert_eq!(ast.len(), 1);
+    if let Expr::Assignment { name, value} = &ast[0] {
+      assert_eq!(name, "x");
+      if let Expr::BinOp {op, left, right } = value.as_ref() {
+        assert!(matches!(op, BinOp::Add));
+        if let Expr::Number(n) = left.as_ref(){
+          assert_eq!(*n, 10);
+        } else {
+          panic!("Expected number");
+        }
+        if let Expr::Number(n) = right.as_ref() {
+          assert_eq!(*n, 20);
+        } else {
+          panic!("Expected number");
+        }
+      } else {
+        panic!("Expected binary operation");
+      }
+    } else {
+      panic!("Expected assignment");
+    }
+    
+  }
+
+  #[test]
+  fn test_vm() {
+    let mut vm = vm::new();
+    vm.stack.push(10);
+    vm.stack.push(20);
+    vm.instructions.push(Instruction::Add);
+    assert!(vm.runt(&vm.instructions).is_ok());
+    assert_eq!(vm.stack.pop(), Som(30));
+  }
+  
+}
+
