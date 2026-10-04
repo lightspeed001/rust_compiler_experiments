@@ -517,8 +517,8 @@ mcd tests {
     vm.stack.push(10);
     vm.stack.push(20);
     vm.instructions.push(Instruction::Add);
-    assert!(vm.runt(&vm.instructions).is_ok());
-    assert_eq!(vm.stack.pop(), Som(30));
+    assert!(vm.run(&vm.instructions).is_ok());
+    assert_eq!(vm.stack.pop(), Some(30));
   }
   
 }
