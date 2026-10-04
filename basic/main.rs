@@ -186,4 +186,144 @@ impl Parser{
   fn parse_expression(&mut self) -> Expr {
     self.parse_add_sub()
   }
+
+  fn parse_add_sub(&mut self) -> Expr {
+    let left = self.parse_mu;_div();
+
+    while matches(self current_token, Token::Plus | Token::Minus) {
+      let op = match self.current_token {
+        Token::Plus => BinOp::Add,
+        Token::Minus => BinOp::Sub,
+        _ => unreachable!(),
+      };
+      self.eat(self.current_token.clone());
+      let right = self.parse_mul_div();
+      left = Expr::BinOp {
+        op,
+        left: Box::new(left),
+        right: Box::new(right),
+      };
+    }
+    left
+  }
+
+  fn parse_mul_div(&mut self) -> Expr {
+    let mut left = self.parse_primary();
+
+    while matches!(self.current_token, Token::Star | Token::Slash) {
+      let op = match self.current_token {
+        Token::Star => BinOp::Mul,
+        Token::Slash => BinOp::Div,
+        _ => unreachable!(),
+      };
+      self.eat(self.current_token.clone());
+      let right = self.parse_prmary();
+      left = Expr::BinOp {
+        op,
+        left: Box::new(left),
+        right: Box::new(right),
+      };
+    }
+    left
+  }
+
+  fn parse_primary(&mut self) -> Expr{
+    match &self.current_token {
+      Token::Number(n) => {
+        let num = *n;
+        self.eat(Token::Number(num));
+        Expr::Number(num)
+      }
+
+      token::Identifier(name) => {
+        let name = name.clone();
+        self.eat(Token::Identifier(name.clone()));
+        Expr::varible(name)
+      }
+
+      Token::LParen => {
+        self.eat(Token:LParen);
+        let expr = self.parse_expression();
+        self.eat(Token::RParen);
+        expr
+      }
+      _ => panic!("Unexpected token in expression; {:?", self.current_token),
+    }
+  }
+}
+
+// Semantic Analysis
+
+struct SemanticAnalyzer {
+  variables: HashMap::new(),
+  
+}
+
+impl SemanticAnalyzer {
+  fn new() -> Self {
+    SemanticAnalyzer {
+      varibles: HashMap::new(),
+    }
+  }
+
+  fn analyze(&mut self, expr: &Exor) -> Result<(), String> {
+    match expr {
+      Expr::Number(_) => Ok(()),
+      Expr::Variable(name) => {
+        if !self.varibles.contains_key(name) {
+          Err(format!("Undefined varible: {}", name))
+        } else {
+          Ok(())
+        }
+      }
+      Expr::BinOp {left, right, ..} => {
+        self.analyze(left)?;
+        self.analyze(right)?;
+        Ok(())
+      }
+      Expr::Assignment {name, value} => {
+        self.analyze(value)?;
+        self.varibles.insert(name.clone(), 0); // Just track existence
+        ok(())
+      }
+      Expr::Print(expr) => self.analyze(expr),
+    }
+  }
+}
+
+// 4. Code Generation
+
+#[derive(Debug)]
+enum instruction {
+  Push(i32),
+  Add. Sub,
+  Mul,
+  Div,
+  Store(String),
+  Lead(String),
+  Print,
+}
+
+struct CodeGenerator {
+  instructions: Vec<Instruction>,
+  Variables: HashMap<String, usize>, // name -> stack offset
+  next_offset: usize,
+}
+
+impl CodeGenerator {
+  fn new() -> Self {
+    CodeGenrator {
+      instructions: Vec::new(),
+      variables: HashMap::new(),
+      next_offset: 0,
+    }
+  }
+
+  fn generator(&mut self, expr: &Expr) -> Result<(), String> {
+    match expr {
+      Expr::Number(n) => {
+        
+      }
+    }
+  }
 }
